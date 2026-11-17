@@ -252,7 +252,7 @@ function setupShot(scene) {
     st.phase = 'title';
   } else if (scene === 'combat') {
     $('ov-title').classList.add('hidden');
-    st.towers[1].angle = Math.PI / 4;                       // old watch, lower mirror
+    st.towers[1].angle = Math.PI / 4;                       // old watch mirror: catches the beam, drops it south
     addTower('mirror', 2, Math.PI / 4);                     // turns the fallen beam east again
     addTower('prism', 12, 0);                               // the split, far east
     addTower('lantern', 10, 0.5);                           // a light of its own, north-east
