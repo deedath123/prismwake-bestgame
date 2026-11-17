@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PRISMWAKE — steer the beacon's beam, burn the Murk back</title>
+<meta name="viewport" content="width=1280">
+<style>
+  :root{
+    --ink:#f3e9d2; --dim:#b8a888; --amber:#ffb454; --amber2:#ff8a3c;
+    --panel:rgba(16,14,30,.92); --line:rgba(255,180,84,.35); --teal:#7fe7d2;
+    --bad:#ff6b5e; --good:#9fe870;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{width:1280px; height:720px; overflow:hidden; background:#07060f;}
+  body{font-family:ui-rounded, "Segoe UI", system-ui, sans-serif; color:var(--ink);}
+  #wrap{position:relative; width:1280px; height:720px;}
+  canvas{position:absolute; inset:0; display:block;}
+  .bar{position:absolute; left:0; right:0; display:flex; align-items:center; gap:18px;
+       padding:8px 16px; background:linear-gradient(180deg, rgba(7,6,18,.88), rgba(7,6,18,.55) 80%, transparent);
+       pointer-events:none;}
+  #hud{top:0; height:52px;}
+  #hud .brand{font-family:Georgia, "Times New Roman", serif; font-size:21px; letter-spacing:3px; color:var(--amber);}
+  #hud .stat{font-size:14px; color:var(--dim); white-space:nowrap;}
+  #hud .stat b{color:var(--ink); font-size:16px;}
+  #hud .grow{flex:1;}
+  #hpfill-wrap{width:170px; height:12px; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:rgba(255,255,255,.06);}
+  #hpfill{height:100%; width:100%; background:linear-gradient(90deg, var(--amber2), var(--amber)); transition:width .25s;}
+  #hud button, .bigbtn{pointer-events:auto; cursor:pointer; font:inherit; font-weight:700; color:#231303;
+    background:linear-gradient(180deg, #ffc46b, #ff9a3c); border:1px solid #ffca7a; border-radius:9px; padding:8px 18px; font-size:15px;}
+  #hud button:disabled{filter:grayscale(.8); opacity:.45; cursor:default;}
+  #msg{position:absolute; top:56px; left:0; right:0; text-align:center; font-size:15px; color:var(--teal);
+       text-shadow:0 1px 8px #000; pointer-events:none; min-height:20px;}
+  #buildbar{bottom:0; height:86px; justify-content:center; background:linear-gradient(0deg, rgba(7,6,18,.9), rgba(7,6,18,.5) 75%, transparent);}
+  .tcard{pointer-events:auto; cursor:pointer; width:212px; padding:8px 12px; border:1px solid var(--line); border-radius:11px;
+         background:var(--panel); display:flex; gap:10px; align-items:center;}
+  .tcard.sel{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber), 0 0 18px rgba(255,180,84,.25);}
+  .tcard.cant{opacity:.45;}
+  .tcard .ic{font-size:26px;}
+  .tcard .nm{font-weight:700; font-size:15px;}
+  .tcard .ds{font-size:11.5px; color:var(--dim); line-height:1.25;}
+  .tcard .cost{margin-left:auto; color:var(--amber); font-weight:700; white-space:nowrap;}
+  #hint{position:absolute; bottom:92px; left:0; right:0; text-align:center; font-size:12.5px; color:var(--dim);
+        text-shadow:0 1px 6px #000; pointer-events:none;}
+  .overlay{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column;
+           background:rgba(5,4,14,.62); z-index:5;}
+  .overlay.hidden{display:none;}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:26px 34px; max-width:880px;
+         box-shadow:0 24px 80px rgba(0,0,0,.6);}
+  h1.title{font-family:Georgia, "Times New Roman", serif; font-size:64px; letter-spacing:9px; color:var(--amber);
+           text-shadow:0 0 34px rgba(255,160,60,.45); text-align:center;}
+  .tagline{text-align:center; font-size:18px; color:var(--ink); margin:8px 0 4px;}
+  .subline{text-align:center; font-size:14px; color:var(--dim); margin-bottom:14px;}
+  .howto{display:grid; grid-template-columns:1fr 1fr; gap:4px 26px; font-size:13.5px; color:var(--dim); margin:10px 0 18px;}
+  .howto b{color:var(--ink);}
+  .center{text-align:center;}
+  #shop-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px 22px; margin:12px 0 16px; min-width:760px;}
+  .urow{display:flex; align-items:center; gap:10px; border:1px solid rgba(255,180,84,.18); border-radius:10px; padding:7px 11px; background:rgba(255,255,255,.03);}
+  .urow .nm{font-weight:700; font-size:14px; white-space:nowrap;}
+  .urow .ds{font-size:11.5px; color:var(--dim); flex:1; line-height:1.25;}
+  .urow .pips{color:var(--amber); letter-spacing:2px; font-size:12px; white-space:nowrap;}
+  .urow button{cursor:pointer; font:inherit; font-weight:700; font-size:13px; color:#231303; border:1px solid #ffca7a;
+               background:linear-gradient(180deg,#ffc46b,#ff9a3c); border-radius:8px; padding:5px 12px; white-space:nowrap;}
+  .urow button:disabled{filter:grayscale(.85); opacity:.4; cursor:default;}
+  table.stats{margin:10px auto 16px; border-collapse:collapse; font-size:15px;}
+  table.stats td{padding:4px 18px; color:var(--dim);}
+  table.stats td.v{color:var(--ink); font-weight:700; text-align:right;}
+  h2.end{font-family:Georgia, serif; font-size:42px; letter-spacing:4px; text-align:center;}
+  .shophead{display:flex; align-items:baseline; gap:16px;}
+  .shophead h2{font-family:Georgia, serif; font-size:27px; color:var(--amber); letter-spacing:2px;}
+  .shophead .emb{margin-left:auto; font-size:16px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv" width="1280" height="720"></canvas>
+
+  <div class="bar" id="hud">
+    <div class="brand">PRISMWAKE</div>
+    <div class="stat">Night <b id="h-night">1 / 7</b></div>
+    <div class="stat">Beacon</div>
+    <div id="hpfill-wrap"><div id="hpfill"></div></div>
+    <div class="stat"><b id="h-hp">100</b></div>
+    <div class="stat">Embers <b id="h-embers">120</b></div>
+    <div class="stat">Murk left <b id="h-left">0</b></div>
+    <div class="grow"></div>
+    <button id="btn-night">Begin night 1</button>
+    <button id="btn-pause" title="Pause (P)">&#10073;&#10073;</button>
+  </div>
+  <div id="msg"></div>
+  <div id="hint">Click a stone plot to build &middot; click a mirror, then <b>Q / E</b> or the wheel to turn it &mdash; the beam moves while the night does &middot; right-click sells</div>
+
+  <div class="bar" id="buildbar">
+    <div class="tcard sel" data-kind="mirror"><div class="ic">&#9673;</div>
+      <div><div class="nm">Mirror <span style="color:var(--dim)">[1]</span></div><div class="ds">Bends the beam. Turn it live, mid-assault.</div></div>
+      <div class="cost">40 &#10022;</div></div>
+    <div class="tcard" data-kind="prism"><div class="ic">&#9651;</div>
+      <div><div class="nm">Prism <span style="color:var(--dim)">[2]</span></div><div class="ds">Splits the beam in two where it strikes.</div></div>
+      <div class="cost">90 &#10022;</div></div>
+    <div class="tcard" data-kind="lantern"><div class="ic">&#9733;</div>
+      <div><div class="nm">Lantern <span style="color:var(--dim)">[3]</span></div><div class="ds">A light of its own. Aim it with Q / E.</div></div>
+      <div class="cost">130 &#10022;</div></div>
+  </div>
+
+  <div class="overlay" id="ov-title">
+    <div class="panel">
+      <h1 class="title">PRISMWAKE</h1>
+      <div class="tagline">Steer the beacon's beam through turning mirrors and burn the Murk back.</div>
+      <div class="subline">Seven nights. Three tower kinds. Nine ember upgrades. The beam moves while the night does.</div>
+      <div class="howto">
+        <div><b>Goal</b> — hold the beacon for 7 nights. If the Murk reaches it, its light dies a little.</div>
+        <div><b>Build</b> — pick a tower (keys 1&ndash;3), click a stone plot. Mirrors bend the beam; prisms split it; lanterns shine alone.</div>
+        <div><b>Steer live</b> — during the assault, click any mirror and turn it with Q / E or the mouse wheel. No pausing the night to think.</div>
+        <div><b>Burn</b> — Murk caught in the light burns and pays embers. Between nights, spend them in the ember shop.</div>
+        <div><b>Keys</b> — Space begins the night, P pauses, R restarts, right-click sells a tower for 60% back.</div>
+        <div><b>The old watch</b> — two mirrors already stand on the field. They are yours now.</div>
+      </div>
+      <div class="center"><button class="bigbtn" id="btn-begin">Take the watch</button></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="ov-shop">
+    <div class="panel">
+      <div class="shophead"><h2>Night held &mdash; the Emberwright's shop</h2><div class="emb">Embers <b id="shop-embers" style="color:var(--amber)">0</b></div></div>
+      <div id="shop-grid"></div>
+      <div class="center"><button class="bigbtn" id="btn-face">Face the next night</button></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="ov-end">
+    <div class="panel">
+      <h2 class="end" id="end-title">THE LIGHT HOLDS</h2>
+      <div class="subline" id="end-line"></div>
+      <table class="stats" id="end-stats"></table>
+      <div class="center"><button class="bigbtn" id="btn-again">Play again</button></div>
+    </div>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
